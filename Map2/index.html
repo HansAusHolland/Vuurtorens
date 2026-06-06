@@ -209,13 +209,13 @@
       box-shadow: 0 2px 8px rgba(100, 55, 5, 0.12) !important;
     }
 
-    /* ── Zoom control ── */
-    .leaflet-control-zoom {
+    /* ──  control ── */
+    .leaflet-control- {
       border: 1px solid rgba(160, 100, 20, 0.35) !important;
       box-shadow: 0 2px 12px rgba(100, 55, 5, 0.2) !important;
     }
 
-    .leaflet-control-zoom a {
+    .leaflet-control- a {
       background: rgba(253, 246, 228, 0.97) !important;
       color: #5a2e00 !important;
       border-color: rgba(160, 100, 20, 0.25) !important;
@@ -224,7 +224,7 @@
       transition: color 0.2s, background 0.2s;
     }
 
-    .leaflet-control-zoom a:hover {
+    .leaflet-control- a:hover {
       background: rgba(248, 235, 200, 1) !important;
       color: #a03018 !important;
     }
@@ -241,7 +241,7 @@
 
     /* ── Print ── */
     @media print {
-      #print-btn, .leaflet-control-zoom, .leaflet-control-scale { display: none !important; }
+      #print-btn, .leaflet-control-, .leaflet-control-scale { display: none !important; }
       #vignette { display: none !important; }
       html, body, #map { width: 100vw !important; height: 100vh !important; }
     }
@@ -271,7 +271,7 @@
   var map = L.map('map', {
     zoomControl: true,
     minZoom: 10,
-    maxZoom: 13
+    maxZoom: 12
   }).fitBounds([[51.04, 3.38], [51.98, 4.86]]);
 
   map.setMaxBounds([[50.5, 2.6], [52.5, 5.6]]);
