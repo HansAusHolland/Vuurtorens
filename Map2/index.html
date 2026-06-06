@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Zeeland: Verdwenen Vuurtorens</title>
+  <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body, #map {
+      width: 100%; height: 100%;
+      font-family: 'EB Garamond', Georgia, serif;
+      background: #f5ead6;
+    }
+
+    /* ── Vignette ── */
+    #vignette {
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse 78% 72% at 50% 50%,
+        transparent 35%,
+        rgba(160, 90, 10, 0.08) 65%,
+        rgba(120, 60, 5, 0.22) 100%);
+      pointer-events: none;
+      z-index: 500;
+    }
+
+    /* ── Cartouche ── */
+    #cartouche {
+      position: fixed;
+      bottom: 32px; right: 32px;
+      z-index: 600;
+      pointer-events: none;
+      text-align: right;
+      padding: 20px 24px 18px;
+      background: linear-gradient(150deg, rgba(253, 246, 228, 0.97) 0%, rgba(248, 238, 212, 0.98) 100%);
+      border: 1px solid rgba(160, 100, 20, 0.35);
+      box-shadow:
+        0 0 0 1px rgba(200, 150, 50, 0.15),
+        0 8px 40px rgba(100, 55, 5, 0.18),
+        inset 0 0 30px rgba(200, 150, 50, 0.06);
+    }
+
+    #cartouche h1 {
+      font-size: 2.1rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      color: #5a2e00;
+      line-height: 1;
+    }
+
+    #cartouche .sub {
+      font-size: 0.88rem;
+      font-style: italic;
+      letter-spacing: 0.16em;
+      color: #9a6020;
+      margin-top: 5px;
+    }
+
+    #cartouche .rule {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(160, 100, 20, 0.4), transparent);
+      margin: 11px 0;
+    }
+
+    #cartouche .count {
+      font-size: 0.85rem;
+      letter-spacing: 0.06em;
+      color: #7a4a10;
+    }
+
+    #cartouche .count strong {
+      color: #5a2e00;
+      font-weight: 600;
+    }
+
+    #cartouche .waterschap {
+      font-size: 0.74rem;
+      text-align: center;
+      letter-spacing: 0.1em;
+      color: #9a7040;
+      margin-top: 2px;
+      font-style: italic;
+    }
+
+    /* ── Print button ── */
+    #print-btn {
+      position: fixed;
+      top: 32px; right: 32px;
+      z-index: 600;
+      cursor: pointer;
+      padding: 8px 16px;
+      background: linear-gradient(150deg, rgba(253, 246, 228, 0.97) 0%, rgba(248, 238, 212, 0.98) 100%);
+      border: 1px solid rgba(160, 100, 20, 0.35);
+      box-shadow: 0 2px 14px rgba(100, 55, 5, 0.15);
+      color: #5a2e00;
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    #print-btn:hover {
+      background: rgba(248, 232, 195, 1);
+      color: #a03018;
+    }
+
+    /* ── Pulsing dot marker ── */
+    .pulse-wrap {
+      width: 14px; height: 14px;
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: rgba(160, 50, 20, 0.22);
+      animation: pulse 3s ease-out infinite;
+    }
+
+    .pulse-core {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #a03018;
+      border: 1px solid rgba(180, 70, 30, 0.7);
+      position: relative; z-index: 1;
+    }
+
+    @keyframes pulse {
+      0%   { transform: scale(0.9); opacity: 0.65; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+
+    /* ── Popup ── */
+    .leaflet-popup-content-wrapper {
+      background: #fdf6e8;
+      border: 1px solid rgba(160, 100, 20, 0.35);
+      border-radius: 2px;
+      box-shadow: 0 6px 32px rgba(100, 55, 5, 0.25);
+    }
+
+    .leaflet-popup-tip { background: #fdf6e8; }
+
+    .leaflet-popup-content {
+      text-align: center;
+      margin: 18px 20px 16px;
+    }
+
+    .leaflet-popup-content h4 {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #3a1800;
+      margin: 0 0 3px;
+      letter-spacing: 0.04em;
+    }
+
+    .leaflet-popup-content p {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 0.82rem;
+      font-style: italic;
+      color: #8a5825;
+      margin: 0 0 12px;
+    }
+
+    .leaflet-popup-content img {
+      width: 210px;
+      display: block;
+      margin: 0 auto;
+      border: 1px solid rgba(160, 100, 20, 0.3);
+      filter: sepia(0.1);
+    }
+
+    .leaflet-popup-close-button {
+      font-size: 18px !important;
+      color: #9a6030 !important;
+      top: 6px !important; right: 8px !important;
+    }
+
+    .leaflet-popup-close-button:hover { color: #3a1800 !important; }
+
+    /* ── Tooltip ── */
+    .leaflet-tooltip {
+      background: rgba(253, 246, 228, 0.96);
+      border: 1px solid rgba(160, 100, 20, 0.4);
+      color: #4a2800;
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
+      border-radius: 1px;
+      box-shadow: 0 2px 10px rgba(100, 55, 5, 0.2);
+    }
+
+    .leaflet-tooltip-top::before { border-top-color: rgba(160, 100, 20, 0.4); }
+
+    /* ── Scale bar ── */
+    .leaflet-control-scale-line {
+      background: rgba(253, 246, 228, 0.92) !important;
+      border: 1px solid rgba(160, 100, 20, 0.35) !important;
+      border-top: 2px solid rgba(140, 80, 15, 0.55) !important;
+      color: #4a2800 !important;
+      font-family: 'EB Garamond', serif !important;
+      font-size: 11px !important;
+      padding: 2px 8px !important;
+      box-shadow: 0 2px 8px rgba(100, 55, 5, 0.12) !important;
+    }
+
+    /* ── Zoom control ── */
+    .leaflet-control-zoom {
+      border: 1px solid rgba(160, 100, 20, 0.35) !important;
+      box-shadow: 0 2px 12px rgba(100, 55, 5, 0.2) !important;
+    }
+
+    .leaflet-control-zoom a {
+      background: rgba(253, 246, 228, 0.97) !important;
+      color: #5a2e00 !important;
+      border-color: rgba(160, 100, 20, 0.25) !important;
+      font-family: 'EB Garamond', serif !important;
+      font-size: 18px !important;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .leaflet-control-zoom a:hover {
+      background: rgba(248, 235, 200, 1) !important;
+      color: #a03018 !important;
+    }
+
+    /* ── Attribution ── */
+    .leaflet-control-attribution {
+      background: rgba(253, 246, 228, 0.92) !important;
+      color: #9a7040 !important;
+      font-family: 'EB Garamond', serif !important;
+      font-size: 10px !important;
+    }
+
+    .leaflet-control-attribution a { color: #6a4010 !important; }
+
+    /* ── Print ── */
+    @media print {
+      #print-btn, .leaflet-control-zoom, .leaflet-control-scale { display: none !important; }
+      #vignette { display: none !important; }
+      html, body, #map { width: 100vw !important; height: 100vh !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="vignette"></div>
+
+<div id="cartouche">
+  <h1>Zeeland</h1>
+  <p class="sub">Verdwenen Vuurtorens</p>
+  <div class="rule"></div>
+  <p class="count" id="count"></p>
+  <div class="rule"></div>
+  <p class="waterschap">Presentatie @Hans</p>
+</div>
+
+<button id="print-btn" onclick="window.print()">Afdrukken / PDF</button>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data/Verdwenen_vuurtorens_zeelandZeeland_0.js"></script>
+<script src="data/Verdwenen_vuurtorens_zeelandVuurtorens_Zeeland_1.js"></script>
+
+<script>
+  var map = L.map('map', {
+    zoomControl: true,
+    minZoom: 9,
+    maxZoom: 12
+  }).fitBounds([[51.04, 3.38], [51.98, 4.86]]);
+
+  map.setMaxBounds([[50.5, 2.6], [52.5, 5.6]]);
+
+  // Mask pane sits above tile layer (200) but below overlays (400)
+  map.createPane('maskPane').style.zIndex = 350;
+  map.getPane('maskPane').style.pointerEvents = 'none';
+
+  // Base: warm light map (CartoDB Voyager)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/">CARTO</a> · Foto\'s: <a href="https://www.vuurtorens.org">vuurtorens.org</a>',
+    subdomains: 'abcd',
+    maxZoom: 12
+  }).addTo(map);
+
+  // Inverse mask: warm cream overlay fading areas outside Zeeland
+  var outerRing = [[-180,-90],[180,-90],[180,90],[-180,90],[-180,-90]];
+  var holes = [];
+  json_Verdwenen_vuurtorens_zeelandZeeland_0.features.forEach(function(feature) {
+    var geom = feature.geometry;
+    if (geom.type === 'Polygon') {
+      holes.push(geom.coordinates[0]);
+    } else if (geom.type === 'MultiPolygon') {
+      geom.coordinates.forEach(function(poly) { holes.push(poly[0]); });
+    }
+  });
+
+  L.geoJSON({
+    type: 'Feature',
+    geometry: { type: 'Polygon', coordinates: [outerRing].concat(holes) }
+  }, {
+    pane: 'maskPane',
+    style: { fillColor: '#f5ead6', fillOpacity: 0.72, stroke: false }
+  }).addTo(map);
+
+  // Zeeland region — warm brown outline, very subtle warm fill
+  L.geoJSON(json_Verdwenen_vuurtorens_zeelandZeeland_0, {
+    style: {
+      color: 'rgba(140, 80, 15, 0.45)',
+      weight: 1,
+      fillColor: '#c8780a',
+      fillOpacity: 0.04
+    }
+  }).addTo(map);
+
+  // Pulsing dot icon
+  var pulseIcon = L.divIcon({
+    className: '',
+    html: '<div class="pulse-wrap"><div class="pulse-ring"></div><div class="pulse-core"></div></div>',
+    iconSize:    [14, 14],
+    iconAnchor:  [7, 7],
+    popupAnchor: [0, -14]
+  });
+
+  // Lighthouse markers
+  L.geoJSON(json_Verdwenen_vuurtorens_zeelandVuurtorens_Zeeland_1, {
+    pointToLayer: function(feature, latlng) {
+      return L.marker(latlng, { icon: pulseIcon });
+    },
+    onEachFeature: function(feature, layer) {
+      var p = feature.properties;
+      var foto = p.url_foto.split(/[\r\n]/)[0].trim();
+      layer.bindPopup(
+        '<h4>' + p.naam + '</h4>' +
+        '<p>gebouwd: ' + p.gebouwd + ' &nbsp;&middot;&nbsp; afgebroken: ' + p.afgebroken + '</p>' +
+        '<img src="' + foto + '" alt="' + p.naam + '">',
+        { maxWidth: 250 }
+      );
+      layer.bindTooltip(p.naam, { direction: 'top', offset: [0, -14] });
+    }
+  }).addTo(map);
+
+  // Scale bar
+  L.control.scale({
+    position: 'bottomleft',
+    imperial: false,
+    metric: true
+  }).addTo(map);
+
+  // Count in cartouche
+  var total = json_Verdwenen_vuurtorens_zeelandVuurtorens_Zeeland_1.features.length;
+  document.getElementById('count').innerHTML =
+    '<strong>' + total + '</strong> verdwenen vuurtorens';
+</script>
+
+</body>
+</html>
