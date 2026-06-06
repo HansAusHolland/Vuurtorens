@@ -239,14 +239,6 @@
 
     .leaflet-control-attribution a { color: #6a4010 !important; }
 
-    /* ── Mask canvas ── */
-    #mask-canvas {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 350;
-    }
-
     /* ── Print ── */
     @media print {
       #print-btn, .leaflet-control-zoom, .leaflet-control-scale { display: none !important; }
@@ -258,7 +250,6 @@
 <body>
 
 <div id="map"></div>
-<canvas id="mask-canvas"></canvas>
 <div id="vignette"></div>
 
 <div id="cartouche">
@@ -291,40 +282,6 @@
     subdomains: 'abcd',
     maxZoom: 12
   }).addTo(map);
-
-  // Canvas mask: fills everything outside Zeeland — repaints instantly on every move/zoom
-  var maskCanvas = document.getElementById('mask-canvas');
-  var maskCtx = maskCanvas.getContext('2d');
-
-  function drawMask() {
-    var size = map.getSize();
-    if (maskCanvas.width !== size.x || maskCanvas.height !== size.y) {
-      maskCanvas.width  = size.x;
-      maskCanvas.height = size.y;
-    } else {
-      maskCtx.clearRect(0, 0, size.x, size.y);
-    }
-    maskCtx.fillStyle = 'rgba(245, 234, 214, 0.72)';
-    maskCtx.beginPath();
-    maskCtx.rect(0, 0, size.x, size.y);
-
-    json_Verdwenen_vuurtorens_zeelandZeeland_0.features.forEach(function(feature) {
-      var geom = feature.geometry;
-      var polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
-      polys.forEach(function(rings) {
-        rings[0].forEach(function(coord, i) {
-          var pt = map.latLngToContainerPoint(L.latLng(coord[1], coord[0]));
-          i === 0 ? maskCtx.moveTo(pt.x, pt.y) : maskCtx.lineTo(pt.x, pt.y);
-        });
-        maskCtx.closePath();
-      });
-    });
-
-    maskCtx.fill('evenodd');
-  }
-
-  map.on('move zoom resize', drawMask);
-  drawMask();
 
   // Zeeland region — warm brown outline, very subtle warm fill
   L.geoJSON(json_Verdwenen_vuurtorens_zeelandZeeland_0, {
