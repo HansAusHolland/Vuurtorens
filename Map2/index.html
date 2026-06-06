@@ -239,6 +239,14 @@
 
     .leaflet-control-attribution a { color: #6a4010 !important; }
 
+    /* ── Mask canvas ── */
+    #mask-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 350;
+    }
+
     /* ── Print ── */
     @media print {
       #print-btn, .leaflet-control-zoom, .leaflet-control-scale { display: none !important; }
@@ -250,6 +258,7 @@
 <body>
 
 <div id="map"></div>
+<canvas id="mask-canvas"></canvas>
 <div id="vignette"></div>
 
 <div id="cartouche">
@@ -270,15 +279,11 @@
 <script>
   var map = L.map('map', {
     zoomControl: true,
-    minZoom: 9,
+    minZoom: 10,
     maxZoom: 12
   }).fitBounds([[51.04, 3.38], [51.98, 4.86]]);
 
   map.setMaxBounds([[50.5, 2.6], [52.5, 5.6]]);
-
-  // Mask pane sits above tile layer (200) but below overlays (400)
-  map.createPane('maskPane').style.zIndex = 350;
-  map.getPane('maskPane').style.pointerEvents = 'none';
 
   // Base: warm light map (CartoDB Voyager)
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -287,25 +292,39 @@
     maxZoom: 12
   }).addTo(map);
 
-  // Inverse mask: warm cream overlay fading areas outside Zeeland
-  var outerRing = [[-180,-90],[180,-90],[180,90],[-180,90],[-180,-90]];
-  var holes = [];
-  json_Verdwenen_vuurtorens_zeelandZeeland_0.features.forEach(function(feature) {
-    var geom = feature.geometry;
-    if (geom.type === 'Polygon') {
-      holes.push(geom.coordinates[0]);
-    } else if (geom.type === 'MultiPolygon') {
-      geom.coordinates.forEach(function(poly) { holes.push(poly[0]); });
-    }
-  });
+  // Canvas mask: fills everything outside Zeeland — repaints instantly on every move/zoom
+  var maskCanvas = document.getElementById('mask-canvas');
+  var maskCtx = maskCanvas.getContext('2d');
 
-  L.geoJSON({
-    type: 'Feature',
-    geometry: { type: 'Polygon', coordinates: [outerRing].concat(holes) }
-  }, {
-    pane: 'maskPane',
-    style: { fillColor: '#f5ead6', fillOpacity: 0.72, stroke: false }
-  }).addTo(map);
+  function drawMask() {
+    var size = map.getSize();
+    if (maskCanvas.width !== size.x || maskCanvas.height !== size.y) {
+      maskCanvas.width  = size.x;
+      maskCanvas.height = size.y;
+    } else {
+      maskCtx.clearRect(0, 0, size.x, size.y);
+    }
+    maskCtx.fillStyle = 'rgba(245, 234, 214, 0.72)';
+    maskCtx.beginPath();
+    maskCtx.rect(0, 0, size.x, size.y);
+
+    json_Verdwenen_vuurtorens_zeelandZeeland_0.features.forEach(function(feature) {
+      var geom = feature.geometry;
+      var polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
+      polys.forEach(function(rings) {
+        rings[0].forEach(function(coord, i) {
+          var pt = map.latLngToContainerPoint(L.latLng(coord[1], coord[0]));
+          i === 0 ? maskCtx.moveTo(pt.x, pt.y) : maskCtx.lineTo(pt.x, pt.y);
+        });
+        maskCtx.closePath();
+      });
+    });
+
+    maskCtx.fill('evenodd');
+  }
+
+  map.on('move zoom resize', drawMask);
+  drawMask();
 
   // Zeeland region — warm brown outline, very subtle warm fill
   L.geoJSON(json_Verdwenen_vuurtorens_zeelandZeeland_0, {
